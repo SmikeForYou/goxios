@@ -80,10 +80,6 @@ func TestClientPostFormDataReal(t *testing.T) {
 	fr.AddValueStr("a", "1")
 	fr.AddValueStr("a", "2")
 	fr.AddValueStr("b", "2")
-	//file, err := os.OpenFile("SmikeForYou/goxios/Readme.md", os.O_RDONLY, 0644)
-	//defer file.Close()
-	//assert.Nil(t, err)
-	//fr.AddFile("file", file)
 	resp, err := c.Post("/post", fr, nil)
 	assert.Nil(t, err)
 	assert.Equal(t, 200, resp.StatusCode)
@@ -104,4 +100,21 @@ func TestClientGetJson(t *testing.T) {
 	b, err := resp.ReadBody()
 	assert.Nil(t, err)
 	assert.Equal(t, `{"a": 1, "b": 2, "c": 3}`, string(b))
+}
+
+func TestClientGetJsonStructuredResponse(t *testing.T) {
+	url := "http://e.com"
+	c := newGoxiosInstance(Config{url, nil, &mockClient{}})
+	resp, err := c.Get("/json", nil)
+	assert.Nil(t, err)
+	assert.Equal(t, 200, resp.StatusCode)
+
+	type RespStruct struct {
+		A int `json:"a"`
+		B int `json:"b"`
+		C int `json:"c"`
+	}
+	json_resp, err := Json[RespStruct](resp)
+	assert.Nil(t, err)
+	assert.Equal(t, *json_resp.Body(), RespStruct{1, 2, 3})
 }
