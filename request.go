@@ -20,6 +20,7 @@ type FormDataRequest struct {
 }
 
 func NewFormDataRequest() *FormDataRequest {
+
 	return &FormDataRequest{values: make(map[string][]io.Reader)}
 }
 
@@ -86,6 +87,7 @@ type JsonRequest[T any] struct {
 	data T
 }
 
+// NewJsonRequest creates a JsonRequest
 func NewJsonRequest[T any](data T) JsonRequest[T] {
 	return JsonRequest[T]{
 		data: data,

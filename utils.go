@@ -5,21 +5,7 @@ import (
 	"net/url"
 	"reflect"
 	"strings"
-	"unsafe"
 )
-
-// s2b converts string to a byte slice without memory allocation.
-//
-// Note it may break if string and/or slice header will change
-// in the future go versions.
-func s2b(s string) (b []byte) {
-	sh := (*reflect.StringHeader)(unsafe.Pointer(&s))
-	bh := (*reflect.SliceHeader)(unsafe.Pointer(&b))
-	bh.Data = sh.Data
-	bh.Cap = sh.Len
-	bh.Len = sh.Len
-	return b
-}
 
 func QueryParamsToStr(params map[string]any) string {
 	var pp = make([]string, 0)
@@ -48,4 +34,14 @@ func urlfor(base string, u string) (string, error) {
 		), nil
 	}
 	return u, nil
+}
+
+func New[T any]() T {
+	var t T
+	type_ := reflect.TypeOf(t)
+	if type_.Kind() == reflect.Ptr {
+		val := reflect.New(type_.Elem()).Interface()
+		return val.(T)
+	}
+	return t
 }

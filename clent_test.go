@@ -16,7 +16,7 @@ func (m mockClient) Do(req *http.Request) (*http.Response, error) {
 	case "GET":
 		switch req.URL.String() {
 		case "http://e.com/json":
-			data := s2b(`{"a": 1, "b": 2, "c": 3}`)
+			data := []byte(`{"a": 1, "b": 2, "c": 3}`)
 			pipeR, pipeW := io.Pipe()
 			go func() {
 				pipeW.Write(data)
