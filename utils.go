@@ -2,6 +2,7 @@ package goxios
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 	"strings"
@@ -44,4 +45,15 @@ func New[T any]() T {
 		return val.(T)
 	}
 	return t
+}
+
+func getHeaderOrDefault(headers http.Header, key string, default_ string) string {
+	if headers == nil {
+		return default_
+	}
+	if aval := headers.Get(key); len(aval) == 0 {
+		return default_
+	} else {
+		return aval
+	}
 }

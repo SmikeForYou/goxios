@@ -6,6 +6,8 @@ import (
 	"net/http"
 )
 
+var DefaultUnmarshaller = json.Unmarshal
+
 type Response struct {
 	http.Response
 }
@@ -24,12 +26,28 @@ func (r *JsonResponse[T]) Body() *T {
 }
 
 func Json[T any](r *Response) (*JsonResponse[T], error) {
+	return NewJsonParser[T](DefaultUnmarshaller).Parse(r)
+}
+
+type JsonParser[T any] struct {
+	unmarshaller func(data []byte, v interface{}) error
+}
+
+// NewJsonParser creates a new JSON parser
+func NewJsonParser[T any](unmarshaler func([]byte, any) error) *JsonParser[T] {
+	return &JsonParser[T]{
+		unmarshaller: unmarshaler,
+	}
+}
+
+// Parse parses the response body into a JSON object
+func (p *JsonParser[T]) Parse(r *Response) (*JsonResponse[T], error) {
 	body, err := io.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
 	target := New[T]()
-	err = json.Unmarshal(body, &target)
+	err = p.unmarshaller(body, &target)
 	if err != nil {
 		return nil, err
 	}

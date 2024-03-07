@@ -5,6 +5,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -19,7 +21,9 @@ func (m mockClient) Do(req *http.Request) (*http.Response, error) {
 			data := []byte(`{"a": 1, "b": 2, "c": 3}`)
 			pipeR, pipeW := io.Pipe()
 			go func() {
+				//nolint:all
 				pipeW.Write(data)
+				//nolint:all
 				pipeW.Close()
 			}()
 			resp := &http.Response{
@@ -31,10 +35,23 @@ func (m mockClient) Do(req *http.Request) (*http.Response, error) {
 		case "http://e.com/stream":
 			return &http.Response{}, nil
 		}
-	case "POST":
+	case "POST", "PUT", "PATCH", "DELETE":
 		switch req.URL.String() {
 		case "http://e.com/json":
-			return nil, nil
+			reqBody, err := io.ReadAll(req.Body)
+			if err != nil {
+				return nil, err
+			}
+			statusCode, err := strconv.Atoi(getHeaderOrDefault(req.Header, "X-Return-Status", "200"))
+			if err != nil {
+				return nil, err
+			}
+			returnBody := getHeaderOrDefault(req.Header, "X-Return-Payload", string(reqBody))
+			resp := &http.Response{
+				StatusCode: statusCode,
+				Body:       io.NopCloser(strings.NewReader(returnBody)),
+			}
+			return resp, nil
 		case "http://e.com/form-data":
 			return nil, nil
 		}

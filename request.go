@@ -9,6 +9,8 @@ import (
 	"strings"
 )
 
+var DefaultMarshaller = json.Marshal
+
 type RequestPayload interface {
 	contentType() string
 	toBuff() (*bytes.Buffer, error)
@@ -20,7 +22,6 @@ type FormDataRequest struct {
 }
 
 func NewFormDataRequest() *FormDataRequest {
-
 	return &FormDataRequest{values: make(map[string][]io.Reader)}
 }
 
@@ -84,7 +85,8 @@ func (r *FormDataRequest) AddFile(key string, file *os.File) {
 }
 
 type JsonRequest[T any] struct {
-	data T
+	data       T
+	marshaller func([]byte, T) error
 }
 
 // NewJsonRequest creates a JsonRequest
@@ -94,12 +96,17 @@ func NewJsonRequest[T any](data T) JsonRequest[T] {
 	}
 }
 
+// SetMarshaller sets the marshaller for the JsonRequest
+func (j JsonRequest[T]) SetMarshaller(m func([]byte, T) error) {
+	j.marshaller = m
+}
+
 func (j JsonRequest[T]) contentType() string {
 	return "application/json"
 }
 
 func (j JsonRequest[T]) toBuff() (*bytes.Buffer, error) {
-	raw, err := json.Marshal(j.data)
+	raw, err := DefaultMarshaller(j.data)
 	if err != nil {
 		return nil, err
 	}

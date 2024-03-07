@@ -133,37 +133,86 @@ func (g *GoxiosInstance) Delete(url string, payload RequestPayload, config *Requ
 	return g.Request("DELETE", url, payload, config)
 }
 
+// Request sends a request with a given method, url, payload and config
 func request(method string, url string, payload RequestPayload, config RequestConfig, client HttpClient) (*Response, error) {
-	var buff = bytes.NewBuffer([]byte{})
-	var contentType = "text/plain"
-	var err error
-	if payload != nil {
-		buff, err = payload.toBuff()
-		if err != nil {
-			return nil, err
-		}
-		contentType = payload.contentType()
+	builder := newRequestBuilder()
+	builder.
+		Method(method).
+		Url(url).
+		Payload(payload).
+		Headers(config.Headers).
+		QueryParams(config.QueryParams)
+
+	return builder.Do(client)
+}
+
+// Get request sends GET request with a given url and config
+func Get(url string, config *RequestConfig) (*Response, error) {
+	return DefaultGoxiosInstance.Get(url, config)
+}
+
+// Post request sends POST request with a given url, payload and config
+func Post(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
+	return DefaultGoxiosInstance.Post(url, payload, config)
+}
+
+// Put request sends PUT request with a given url, payload and config
+func Put(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
+	return DefaultGoxiosInstance.Put(url, payload, config)
+}
+
+// Patch request sends PATCH request with a given url, payload and config
+func Patch(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
+	return DefaultGoxiosInstance.Patch(url, payload, config)
+}
+
+// Delete request sends DELETE request with a given url, payload and config
+func Delete(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
+	return DefaultGoxiosInstance.Delete(url, payload, config)
+}
+
+type RequestBuilder struct {
+	method      string
+	url         string
+	queryParams map[string]any
+	payload     *bytes.Buffer
+	contentType string
+	headers     http.Header
+	error       error
+}
+
+func (b *RequestBuilder) Build() (*http.Request, error) {
+	if b.error != nil {
+		return nil, b.error
 	}
+	if b.payload == nil {
+		b.payload = bytes.NewBuffer([]byte{})
+	}
+	req, err := http.NewRequest(b.method, b.BuildQueryParams(), b.payload)
 	if err != nil {
 		return nil, err
 	}
-	if config.QueryParams != nil {
-		url = url + "?" + QueryParamsToStr(config.QueryParams)
-	}
-	req, err := http.NewRequest(method, url, buff)
-	if err != nil {
-		return nil, err
-	}
-	if config.Headers != nil {
-		for k, v := range config.Headers {
+	if b.headers != nil {
+		for k, v := range b.headers {
 			for _, s := range v {
 				req.Header.Set(k, s)
 			}
 		}
+
 	}
-	req.Header.Set("Content-Type", contentType)
+	if b.contentType != "" {
+		req.Header.Set("Content-Type", b.contentType)
+	}
+	return req, nil
+}
+
+func (b *RequestBuilder) Do(client HttpClient) (*Response, error) {
+	req, err := b.Build()
+	if err != nil {
+		return nil, err
+	}
 	if client == nil {
-		client = &httpClient{}
+		client = DefaultClient
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -173,22 +222,52 @@ func request(method string, url string, payload RequestPayload, config RequestCo
 	return &response, nil
 }
 
-func Get(url string, config *RequestConfig) (*Response, error) {
-	return DefaultGoxiosInstance.Get(url, config)
+func (b *RequestBuilder) BuildQueryParams() string {
+	if len(b.queryParams) == 0 {
+		return b.url
+	}
+	return b.url + "?" + QueryParamsToStr(b.queryParams)
 }
 
-func Post(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
-	return DefaultGoxiosInstance.Post(url, payload, config)
+func (b *RequestBuilder) Method(method string) *RequestBuilder {
+	if method == "" {
+		b.error = ErrEmptyMethod
+	}
+	b.method = method
+	return b
 }
 
-func Put(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
-	return DefaultGoxiosInstance.Put(url, payload, config)
+func (b *RequestBuilder) Url(url string) *RequestBuilder {
+	if url == "" {
+		b.error = ErrEmptyUrl
+	}
+	b.url = url
+	return b
 }
 
-func Patch(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
-	return DefaultGoxiosInstance.Patch(url, payload, config)
+func (b *RequestBuilder) QueryParams(params map[string]any) *RequestBuilder {
+	if params != nil {
+		b.queryParams = params
+	}
+	return b
 }
 
-func Delete(url string, payload RequestPayload, config *RequestConfig) (*Response, error) {
-	return DefaultGoxiosInstance.Delete(url, payload, config)
+func (b *RequestBuilder) Payload(payload RequestPayload) *RequestBuilder {
+	if payload != nil {
+		buff, err := payload.toBuff()
+		if err != nil {
+			b.error = err
+		}
+		b.payload = buff
+		b.contentType = payload.contentType()
+	}
+	return b
+}
+
+func (b *RequestBuilder) Headers(headers http.Header) *RequestBuilder {
+	b.headers = headers
+	return b
+}
+func newRequestBuilder() *RequestBuilder {
+	return &RequestBuilder{}
 }
